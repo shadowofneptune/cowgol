@@ -49,6 +49,10 @@ Declares a subroutine with the supplied human-readable name (which is mostly
 ignored by the linker but may be used in messaging and symbol naming). The
 length of the string is taken from the record size.
 
+### T: tail-position marker
+
+No payload. Appears directly after a subroutine to mark that it does not return.
+
 ### X: declare external subroutine
 
 ```
@@ -142,3 +146,12 @@ Replaced with a unique ID representing this subroutine. (Useful for constructing
 
 Replaced with a numeric size of one of the specified subroutine's workspaces.
 
+
+### 06: tail-position marker
+
+```
+<06>
+```
+
+Appears following a subroutine reference. Appears directly after a subroutine reference.
+Marks that the previous subroutine does not return to the called function.

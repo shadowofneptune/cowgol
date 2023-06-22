@@ -1,5 +1,5 @@
 %token ASM ASSIGN BREAK CLOSEPAREN CLOSESQ.
-%token COLON CONST DOT ELSE END EXTERN.
+%token COLON CONST DOT ELSE END EXTERN GOTO.
 %token IF LOOP MINUS NOT OPENPAREN OPENSQ.
 %token PERCENT PLUS RECORD RETURN SEMICOLON SLASH STAR.
 %token SUB THEN TILDE VAR WHILE TYPE.
@@ -793,6 +793,14 @@ varortypeid(T) ::= OPENPAREN typeref(T1) CLOSEPAREN.
 		current_call := call.parent;
 		Free(call as [uint8]);
 	end sub;
+
+	sub i_end_tailcall() is
+		EmitterReferenceSubroutine(current_subr, current_call.intfsubr);
+		EmitterReferenceTailcall();
+		var call := current_call;
+		current_call := call.parent;
+		Free(call as [uint8]);
+	end sub;
 }
 
 expression(E) ::= startsubcall inputargs(INA).
@@ -817,6 +825,57 @@ expression(E) ::= startsubcall inputargs(INA).
 	E := MidDeref(w, MidAddress(temp, 0));
 	E.type := param.vardata.type;
 }
+
+statement ::= GOTO startsubcall inputargs(INA) SEMICOLON.
+{
+	sub isParent(child: [Subroutine], subr: [Subroutine]): (b: uint8) is
+		b := 0;
+		while child.parent != 0 loop
+			if child.parent.id == subr.id then
+				b := 1;
+				break;
+			else
+				child := child.parent;
+			end if;
+		end loop;
+	end sub;
+	var intfsubr1 := current_call.intfsubr;
+	var intfsubr2 := current_subr.intfsubr;
+	i_check_sub_call_args();
+
+	var paramindex1 := intfsubr1.num_output_parameters;
+	var paramindex2 := intfsubr2.num_output_parameters;
+	var error: uint8 := 0;
+	if paramindex1 != paramindex2 then
+		error := 1;
+	end if;
+	while paramindex1 > 0 and error == 0 loop
+		paramindex1 := paramindex1 - 1;
+		var param1 := GetOutputParameter(intfsubr1, paramindex1);
+		var param2 := GetOutputParameter(intfsubr2, paramindex1);
+
+		if param1.vardata.type != param2.vardata.type then
+			error := 1;
+		end if;
+	end loop;
+	if error != 0 then
+		StartError();
+		print(intfsubr1.symbol.name);
+		print(" must have the same output parameters as ");
+		print(intfsubr2.symbol.name);
+		print(" to be used in this goto statement.");
+		EndError();
+	end if;
+	error := isParent(intfsubr1, intfsubr2);
+	error := error | isParent(intfsubr2, intfsubr1);
+	if error != 0 then
+		SimpleError("Caller and called subroutine must be of equal levels of nesting in a goto statement.");
+	end if;
+
+	Generate(MidTailcall(INA, current_call.expr, intfsubr1));
+	i_end_tailcall();
+}
+
 
 statement ::= startsubcall inputargs(INA) SEMICOLON.
 {
