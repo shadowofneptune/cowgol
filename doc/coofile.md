@@ -148,10 +148,10 @@ Replaced with a unique ID representing this subroutine. (Useful for constructing
 Replaced with a numeric size of one of the specified subroutine's workspaces.
 
 
-### 06: tail-position marker
+### 07: tail-position marker
 
 ```
-<06>
+<07>
 ```
 
 Appears following a subroutine reference. Appears directly after a subroutine reference.
