@@ -127,6 +127,10 @@ sub ReadR() is
 	EmitterReferenceSubroutineById(user.id, used.id);
 end sub;
 
+sub ReadT() is
+	EmitterReferenceTailcall();
+end sub;
+
 sub ReadF() is
 	var subr := FindSubr(I_b16());
 	subr.flags := I_b8();
@@ -148,6 +152,7 @@ sub ProcessFile() is
 			when 'W': ReadW();
 			when 'R': ReadR();
 			when 'F': ReadF();
+			when 'T': ReadT();
 
 			when else:
 				StartError();

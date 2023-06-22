@@ -249,6 +249,10 @@ sub EmitterReferenceSubroutineById(user: uint16, used: uint16) is
 	WriteB16(used);
 end sub;
 
+sub EmitterReferenceTailcall() is
+	WriteB8('T');
+end sub;
+
 sub EmitterReferenceSubroutine(user: [Subroutine], used: [Subroutine]) is
 	EmitterReferenceSubroutineById(user.id, used.id);
 end sub;

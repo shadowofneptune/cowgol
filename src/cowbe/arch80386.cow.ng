@@ -769,6 +769,16 @@ gen        CALL(  ARG1(param, al),  ebx) uses all { E_callebx(); }
 gen        CALL(  ARG2(param, ax),  ebx) uses all { E_callebx(); }
 gen        CALL(  ARG4(param, eax), ebx) uses all { E_callebx(); }
 
+gen    TAILCALL(       param,       SUBREF():a) uses all {  }
+gen    TAILCALL(  ARG1(param, al),  SUBREF():a) uses all {  }
+gen    TAILCALL(  ARG2(param, ax),  SUBREF():a) uses all {  }
+gen    TAILCALL(  ARG4(param, eax), SUBREF():a) uses all {  }
+
+gen        CALL(       param,       ebx) uses all {  }
+gen        CALL(  ARG1(param, al),  ebx) uses all {  }
+gen        CALL(  ARG2(param, ax),  ebx) uses all {  }
+gen        CALL(  ARG4(param, eax), ebx) uses all {  }
+
 gen param := END();
 
 gen param := ARG1(param, r8:lhs)  { E_push($lhs); }

@@ -49,10 +49,6 @@ Declares a subroutine with the supplied human-readable name (which is mostly
 ignored by the linker but may be used in messaging and symbol naming). The
 length of the string is taken from the record size.
 
-### T: tail-position marker
-
-No payload. Appears directly after a subroutine to mark that it does not return.
-
 ### X: declare external subroutine
 
 ```
@@ -72,6 +68,11 @@ string is taken from the record size.
 
 Indicates that subroutine `userid` calls `usedid`. Used to tell the linker
 about the call graph.
+
+### T: tail-position marker
+
+No payload. Appears directly after a subroutine reference to mark that it does not return.
+
 
 ### W: declare workspace
 
