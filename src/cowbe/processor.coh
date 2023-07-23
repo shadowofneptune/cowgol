@@ -121,13 +121,19 @@ sub ReadW() is
 	EmitterDeclareWorkspace(subr.id, wsid, size);
 end sub;
 
+var lastusedsubr: [Subroutine];
+
 sub ReadR() is
 	var user := FindSubr(I_b16());
-	var used := FindSubr(I_b16());
-	EmitterReferenceSubroutineById(user.id, used.id);
+	lastusedsubr := FindSubr(I_b16());
+	EmitterReferenceSubroutineById(user.id, lastusedsubr.id);
 end sub;
 
 sub ReadT() is
+	#Safe to read lastusedsubr in this case since T always follows R.
+	if lastusedsubr != 0 as [Subroutine] then
+		lastusedsubr.flags := lastusedsubr.flags | SUB_IS_TAILCALLED;
+	end if;
 	EmitterReferenceTailcall();
 end sub;
 

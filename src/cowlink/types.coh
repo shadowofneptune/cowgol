@@ -6,8 +6,9 @@ record References is
 	calls: [Subroutine][COO_REFS_SIZE];
 end record;
 
-const SUB_USED           := 0b01;
-const SUB_IMPLEMENTATION := 0b10;
+const SUB_USED           := 0b0001;
+const SUB_IMPLEMENTATION := 0b0010;
+const SUB_IS_TAILCALLED  := 0b1000;
 
 record Subroutine is
 	coo: [Coo];
