@@ -69,11 +69,6 @@ string is taken from the record size.
 Indicates that subroutine `userid` calls `usedid`. Used to tell the linker
 about the call graph.
 
-### T: tail-position marker
-
-No payload. Appears directly after a subroutine reference to mark that it does not return.
-
-
 ### W: declare workspace
 
 ```

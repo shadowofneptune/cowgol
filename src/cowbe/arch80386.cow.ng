@@ -1,4 +1,14 @@
 %{
+	record ArchSubroutine is
+		rts_label: LabelRef;
+	end record;
+
+	sub AllocPLabel(): (lid: uint16) is
+		# Cheap and cheerful private label which doesn't conflict with anything
+		# the front end allocated.
+		lid := -AllocLabel();
+	end sub;
+
 	sub ArchAlignUp(value: Size, alignment: uint8): (newvalue: Size) is
 		newvalue := value;
 	end sub;
@@ -289,10 +299,25 @@
 		E_nl();
 	end sub;
 
+	sub E_tailcall(subr: [Subroutine]) is
+		R_flushall();
+		E_tab();
+		E("jmp ");
+		E_subref(subr);
+		E_nl();
+	end sub;
+
 	sub E_callebx() is
 		R_flushall();
 		E_tab();
 		E("call *%ebx");
+		E_nl();
+	end sub;
+
+	sub E_tailcallebx() is
+		R_flushall();
+		E_tab();
+		E("jmp *%ebx");
 		E_nl();
 	end sub;
 
@@ -673,6 +698,23 @@ gen STARTSUB() uses all
 		end if;
 	end sub;
 
+	var istailcalled := current_subr.flags & SUB_PARTOF_TAILCALL;
+	print("current subroutine is ");
+	print_hex_i16(current_subr.id);
+
+	if istailcalled != 0 then
+		print("This is a tailcall subroutine!\n");
+		current_subr.arch := InternalAlloc(@bytesof ArchSubroutine)
+			as [ArchSubroutine];
+		current_subr.arch.rts_label := AllocPLabel();
+		pop_return_address();
+		E_mov(REG_EDX);
+		E_reg(REG_EDX);
+		E_comma();
+                E_labelref(current_subr.arch.rts_label);
+		E_nl();
+	end if;
+
 	while count != 0 loop
 		count := count - 1;
 		var param := GetInputParameter(current_subr, count);
@@ -691,7 +733,7 @@ gen STARTSUB() uses all
 		E_store(reg, param as [Symbol], 0, 0);
 	end loop;
 
-	if popped != 0 then
+	if popped != 0 and istailcalled == 0 then
 		E_push(REG_EDX);
 	end if;
 }
@@ -715,6 +757,17 @@ gen ENDSUB() uses all
 		end if;
 	end sub;
 
+	var istailcalled := current_subr.flags & SUB_PARTOF_TAILCALL;
+	if istailcalled != 0 then
+		print("This is the end of a tailcall subroutine!\n");
+		pushed := 1;
+		E_mov(REG_EDX);
+                E_labelref(current_subr.arch.rts_label);
+		E_comma();
+		E_reg(REG_EDX);
+		E_nl();
+	end if;
+
 	while count != params loop
 		var param := GetOutputParameter(current_subr, count);
 
@@ -733,12 +786,17 @@ gen ENDSUB() uses all
 		count := count + 1;
 	end loop;
 
-	if pushed != 0 then
+	if pushed != 0 or istailcalled != 0 then
 		E("\tjmp *%edx\n");
 	else
 		E_ret();
 	end if;
 
+	if istailcalled != 0 then
+		E("\t.bss 1\n");
+		E_label(current_subr.arch.rts_label);
+		E("\t.space 4\n");
+	end if;
 	EmitterCloseStream();
 }
 
@@ -757,6 +815,10 @@ gen RETURN() uses all
 	sub Call(addr: [MidcodeSubref]) is
 		E_call(addr.subr);
 	end sub;
+
+	sub Tailcall(addr: [MidcodeSubref]) is
+		E_tailcall(addr.subr);
+	end sub;
 %}
 
 gen        CALL(       param,       SUBREF():a) uses all { Call(&$a); }
@@ -769,15 +831,15 @@ gen        CALL(  ARG1(param, al),  ebx) uses all { E_callebx(); }
 gen        CALL(  ARG2(param, ax),  ebx) uses all { E_callebx(); }
 gen        CALL(  ARG4(param, eax), ebx) uses all { E_callebx(); }
 
-gen    TAILCALL(       param,       SUBREF():a) uses all {  }
-gen    TAILCALL(  ARG1(param, al),  SUBREF():a) uses all {  }
-gen    TAILCALL(  ARG2(param, ax),  SUBREF():a) uses all {  }
-gen    TAILCALL(  ARG4(param, eax), SUBREF():a) uses all {  }
+gen    TAILCALL(       param,       SUBREF():a) uses all { 		print("This is the end of a tailcall subroutine!\n"); Tailcall(&$a); }
+gen    TAILCALL(  ARG1(param, al),  SUBREF():a) uses all { 		print("This is the end of a tailcall subroutine!\n"); Tailcall(&$a); }
+gen    TAILCALL(  ARG2(param, ax),  SUBREF():a) uses all { 		print("This is the end of a tailcall subroutine!\n"); Tailcall(&$a); }
+gen    TAILCALL(  ARG4(param, eax), SUBREF():a) uses all { 		print("This is the end of a tailcall subroutine!\n"); Tailcall(&$a); }
 
-gen        CALL(       param,       ebx) uses all {  }
-gen        CALL(  ARG1(param, al),  ebx) uses all {  }
-gen        CALL(  ARG2(param, ax),  ebx) uses all {  }
-gen        CALL(  ARG4(param, eax), ebx) uses all {  }
+gen    TAILCALL(       param,       ebx) uses all { 		print("This is the end of a tailcall ebx subroutine!\n"); E_tailcallebx(); }
+gen    TAILCALL(  ARG1(param, al),  ebx) uses all { print("This is the end of a tailcall ebx subroutine!\n"); E_tailcallebx(); }
+gen    TAILCALL(  ARG2(param, ax),  ebx) uses all { print("This is the end of a tailcall ebx subroutine!\n"); E_tailcallebx(); }
+gen    TAILCALL(  ARG4(param, eax), ebx) uses all { print("This is the end of a tailcall ebx subroutine!\n"); E_tailcallebx(); }
 
 gen param := END();
 

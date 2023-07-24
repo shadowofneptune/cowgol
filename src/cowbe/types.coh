@@ -18,7 +18,7 @@ end record;
 const SUB_HAS_IMPL          := 0b0001;
 const SUB_IS_INTERFACE      := 0b0010;
 const SUB_IS_IMPLEMENTATION := 0b0100;
-const SUB_IS_TAILCALLED     := 0b1000;
+const SUB_PARTOF_TAILCALL   := 0b1000;
 
 record Subroutine is
 	name: string;

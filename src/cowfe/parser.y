@@ -793,14 +793,6 @@ varortypeid(T) ::= OPENPAREN typeref(T1) CLOSEPAREN.
 		current_call := call.parent;
 		Free(call as [uint8]);
 	end sub;
-
-	sub i_end_tailcall() is
-		EmitterReferenceSubroutine(current_subr, current_call.intfsubr);
-		EmitterReferenceTailcall();
-		var call := current_call;
-		current_call := call.parent;
-		Free(call as [uint8]);
-	end sub;
 }
 
 expression(E) ::= startsubcall inputargs(INA).
@@ -841,31 +833,14 @@ statement ::= GOTO startsubcall inputargs(INA) SEMICOLON.
 	end sub;
 	var intfsubr1 := current_call.intfsubr;
 	var intfsubr2 := current_subr.intfsubr;
-	i_check_sub_call_args();
 
-	var paramindex1 := intfsubr1.num_output_parameters;
-	var paramindex2 := intfsubr2.num_output_parameters;
-	var error: uint8 := 0;
-	if paramindex1 != paramindex2 then
-		error := 1;
-	end if;
-	while paramindex1 > 0 and error == 0 loop
-		paramindex1 := paramindex1 - 1;
-		var param1 := GetOutputParameter(intfsubr1, paramindex1);
-		var param2 := GetOutputParameter(intfsubr2, paramindex1);
-
-		if param1.vardata.type != param2.vardata.type then
-			error := 1;
-		end if;
-	end loop;
+	var error := intfsubr1.flags & SUB_PARTOF_TAILCALL;
+	error := error | (intfsubr2.flags & SUB_PARTOF_TAILCALL);
+	error := error | (current_subr.flags & SUB_PARTOF_TAILCALL);
 	if error != 0 then
-		StartError();
-		print(intfsubr1.symbol.name);
-		print(" must have the same output parameters as ");
-		print(intfsubr2.symbol.name);
-		print(" to be used in this goto statement.");
-		EndError();
+		SimpleError("To use a goto statement, both caller and called subroutines must be declared goto. e.g. 'sub goto (x) is...', etc.");
 	end if;
+	
 	error := isParent(intfsubr1, intfsubr2);
 	error := error | isParent(intfsubr2, intfsubr1);
 	if error != 0 then
@@ -873,7 +848,7 @@ statement ::= GOTO startsubcall inputargs(INA) SEMICOLON.
 	end if;
 
 	Generate(MidTailcall(INA, current_call.expr, intfsubr1));
-	i_end_tailcall();
+	i_end_call();
 }
 
 
@@ -1113,30 +1088,48 @@ submodifiers ::= submodifiers EXTERN OPENPAREN STRING(X) CLOSEPAREN.
 	EmitterDeclareExternalSubroutine(preparing_subr.id, X.string);
 }
 
+
+%include
+{
+	sub NewSubId(symbol: [Symbol], preparing_subr: [Subroutine]) is
+		preparing_subr := InternalAlloc(@bytesof Subroutine)
+			as [Subroutine];
+		preparing_subr.namespace.parent := &current_subr.namespace;
+		preparing_subr.parent := current_subr;
+		preparing_subr.id := AllocSubrId();
+
+		var type := AllocNewType();
+		type.kind := TYPE_SUBROUTINE;
+		type.width := intptr_type.width;
+		type.alignment := intptr_type.alignment;
+		type.stride := intptr_type.stride;
+		type.subrtype.subr := preparing_subr;
+		preparing_subr.type := type;
+		preparing_subr.intfsubr := preparing_subr;
+
+		symbol.kind := TYPE;
+		symbol.typedata := type;
+		type.symbol := symbol;
+		preparing_subr.symbol := symbol;
+
+		EmitterDeclareSubroutine(preparing_subr);
+	end sub;
+}
+
 %type newsubid {[Symbol]}
 newsubid(R) ::= newid(S).
 {
-	preparing_subr := InternalAlloc(@bytesof Subroutine) as [Subroutine];
-	preparing_subr.namespace.parent := &current_subr.namespace;
-	preparing_subr.parent := current_subr;
-	preparing_subr.id := AllocSubrId();
-
-	var type := AllocNewType();
-	type.kind := TYPE_SUBROUTINE;
-	type.width := intptr_type.width;
-	type.alignment := intptr_type.alignment;
-	type.stride := intptr_type.stride;
-	type.subrtype.subr := preparing_subr;
-	preparing_subr.type := type;
-	preparing_subr.intfsubr := preparing_subr;
-
-	S.kind := TYPE;
-	S.typedata := type;
-	type.symbol := S;
-	preparing_subr.symbol := S;
-
-	EmitterDeclareSubroutine(preparing_subr);
+	var p: [Subroutine];
+	NewSubId(S, p);
 	R := S;
+}
+
+newsubid(R) ::= GOTO newid(S).
+{
+	var p: [Subroutine];
+	NewSubId(S, p);
+	R := S;
+	p.flags := p.flags | SUB_PARTOF_TAILCALL;
 }
 
 subimpldecl ::= IMPL SUB oldid(S).

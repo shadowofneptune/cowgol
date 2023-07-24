@@ -10,6 +10,7 @@ ARCHS = [
     "bbctn",
     "cgen",
     "fuzix6303",
+    "grub386",
     "lx386",
     "lx68k",
     "lxppc",

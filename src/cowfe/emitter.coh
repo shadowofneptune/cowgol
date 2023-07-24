@@ -173,10 +173,6 @@ sub EmitterReferenceSubroutine(user: [Subroutine], used: [Subroutine]) is
 	EmitterReferenceSubroutineById(user.id, used.id);
 end sub;
 
-sub EmitterReferenceTailcall() is
-	E_b8('T');
-end sub;
-
 sub EmitterDeclareWorkspace(subr: [Subroutine], wid: uint8, workspace: Size) is
 	E_b8('W');
 	E_b16(subr.id);

@@ -1,0 +1,136 @@
+# A cowlink header that produces Multiboot2-compatible images for
+# i386 systems.
+# Place a file with the name "tags.s" in the same directory as the output .s
+# file. In there, you can add the multiboot2 tags you desire.
+# https://www.gnu.org/software/grub/manual/multiboot2/multiboot.html
+#
+# Declared labels:	Description:
+# 	_start		Start of image, per ELF convention
+#	HIMEM		End of kernel's initial memory arena (see 'LOMEM'.)
+#	header_start	Start of multiboot2 header.
+#	header_end	End of multiboot2 header.
+#	LOMEM		Start of kernel's initial memory arena.
+#				It is 0x7000 bytes in size.
+#	STACK		Top of the initial stack. It does not need to be very
+#				large, as Cowgol only uses it for parameter
+#				passing, and those values are only 8 bytes
+#				large at most.
+#				It is 0x1000 bytes in size.
+#	ws		Start of kernel's workspace. Think of it as a stack
+#				that is statically allocated.
+#				Its size depends on the size of the kernel.
+#				It will never overrun.
+#
+# Any other labels beginning with '_' are reserved.
+#-------------------------------------------------------------------------------
+# Copyright (c) 2015 David Given
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#-------------------------------------------------------------------------------
+
+const STACK_SIZE := 128;
+
+var workspaceSize: Size[NUM_WORKSPACES];
+
+sub E_nl() is
+	E_b8('\n');
+end sub;
+
+sub ArchAlignUp(value: Size, alignment: uint8): (newvalue: Size) is
+	newvalue := value;
+end sub;
+
+sub ArchEmitSubRef(subr: [Subroutine]) is
+	E_b8('f');
+	E_u16(subr.id);
+	E_b8('_');
+	E(subr.name);
+end sub;
+
+sub ArchEmitWSRef(wid: uint8, address: Size) is
+	E("ws+");
+	E_u16(address);
+end sub;
+
+sub ArchEmitHeader(coo: [Coo]) is
+	E("\t.set _MAGIC, 0xE85250D6\n");
+	E("\t.set _ARCHITECTURE, 0\n");
+	E("\t.set _HEADER_LENGTH, header_end - header_start\n");
+	E("\t.set _CHECKSUM, -(_MAGICNUM + _ARCHITECTURE + _HEADER_LENGTH)\n");
+	E_nl();
+
+	E("\t.section .multiboot\n");
+	E("\t.align 8\n");
+	E("header_start:\n");
+	E("\t.long _MAGICNUM\n");
+	E("\t.long _ARCHITECTURE\n");
+	E("\t.long _HEADER_LENGTH\n");
+	E("\t.long _CHECKSUM\n");
+	E("\t.include \"tags.s\"\n");
+	E("\t.align 8\n");
+	E("\t.hword 0, 0\n");
+	E("\t.long 8\n");
+	E("header_end:\n");
+	E_nl();
+
+	E("\t.text\n");
+	E("\t.global _start\n");
+	E("_start:\n");
+	E("\tmov $STACK, %esp\n");
+
+
+	while coo != (0 as [Coo]) loop
+		var main := coo.index.subroutines[0];
+		if main != (0 as [Subroutine]) then
+			E("\tcall ");
+			ArchEmitSubRef(main);
+			E_nl();
+		end if;
+		coo := coo.next;
+	end loop;
+
+	E("\tcli\n");
+	E("_end:\thlt\n");
+	E("\tjmp _end\n");
+end sub;
+
+sub ArchEmitFooter(coo: [Coo]) is
+	E("\t.bss\n");
+	E("ws: .space ");
+	E_u16(workspaceSize[0]);
+	E_nl();
+	E("\t.align 8\n");
+	E("LOMEM: .space 0x7000\n");
+	E("HIMEM: .space 0x1000\n");
+	E("STACK:\n");
+
+	# This is ridiculous, but can't be helped: write spaces to pad the end
+	# of the file. Unix C compilers don't like trailing nuls.
+
+	var padding := FCBExt(&outfcb) - FCBPos(&outfcb);
+	while padding != 0 loop
+		E_b8(' ');
+		padding := padding - 1;
+	end loop;
+end sub;
