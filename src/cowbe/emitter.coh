@@ -261,3 +261,8 @@ sub EmitterDeclareWorkspace(subrid: SubrId, wid: uint8, workspace: Size) is
 	WriteB16(workspace as uint16);
 end sub;
 
+sub EmitterReferenceTailcall(subrid: SubrId) is
+	WriteB8('T');
+	WriteB16(2);
+	WriteB16(subrid);
+end sub;

@@ -130,6 +130,9 @@ end sub;
 sub ReadF() is
 	var subr := FindSubr(I_b16());
 	subr.flags := I_b8();
+	if subr.flags & SUB_PARTOF_TAILCALL != 0 then
+		EmitterReferenceTailcall(subr.id);
+	end if;
 end sub;
 
 sub ProcessFile() is
