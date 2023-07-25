@@ -102,6 +102,11 @@ sub PlaceSubroutines(subroutine: [Subroutine]) is
 				end if;
 				called := Deref(called);
 
+				if called.state & SUB_PARTOF_TAILCALL != 0
+				and called.state & SUB_USED != 0 then
+					continue;
+				end if;
+
 				i := 0;
 				while i != NUM_WORKSPACES loop
 					var curAddr := called.workspaceAddress[i];

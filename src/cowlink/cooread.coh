@@ -140,6 +140,10 @@ sub OpenAndLoadCoo(filename: [uint8]): (coo: [Coo]) is
 				EndError();
 			end if;
 			subroutine.external := external;
+		elseif c == 'T' then
+			id := read_bin2(&coo.fcb);
+			subroutine := FindOrCreateSub(coo, id);
+			subroutine.state := subroutine.state | SUB_PARTOF_TAILCALL; 
 		else
 			print("error: unsupported record '");
 			print_char(c);
