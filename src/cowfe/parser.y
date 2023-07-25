@@ -1,5 +1,5 @@
 %token ASM ASSIGN BREAK CLOSEPAREN CLOSESQ.
-%token COLON CONST DOT ELSE END EXTERN.
+%token COLON CONST DOT ELSE END EXTERN GOTO.
 %token IF LOOP MINUS NOT OPENPAREN OPENSQ.
 %token PERCENT PLUS RECORD RETURN SEMICOLON SLASH STAR.
 %token SUB THEN TILDE VAR WHILE TYPE.
@@ -831,6 +831,33 @@ statement ::= startsubcall inputargs(INA) SEMICOLON.
 	i_end_call();
 }
 
+statement ::= GOTO startsubcall inputargs(INA) SEMICOLON.
+{
+	sub is_parent(child: [Subroutine], subr: [Subroutine]): (b: uint8) is
+		b := 0;
+		while child.parent != 0 loop
+			if child.parent.id == subr.id then
+				b := 1;
+				break;
+			else
+				child := child.parent;
+			end if;
+		end loop;
+	end sub;
+	var intfsubr1 := current_call.intfsubr;
+	var intfsubr2 := current_subr.intfsubr;
+
+	var error := is_parent(intfsubr1, intfsubr2);
+	error := error | is_parent(intfsubr2, intfsubr1);
+	if error != 0 then
+		SimpleError("Caller and called subroutine must be of equal levels of nesting to use a goto statement.");
+	end if;
+
+	Generate(MidTailcall(INA, current_call.expr, intfsubr1));
+	i_end_call();
+}
+
+
 statement ::= outputargs(OUTA) ASSIGN startsubcall inputargs(INA) SEMICOLON.
 {
 	var intfsubr := current_call.intfsubr;
@@ -1026,6 +1053,9 @@ implementsstart ::= SUB newsubid IMPLEMENTS typeref(T).
 		not_an_interface();
 	end if;
 
+	var istail := intfsubr.flags | SUB_PARTOF_TAILCALL;
+	current_subr.flags := current_subr.flags | istail;
+
 	preparing_subr.flags := preparing_subr.flags | SUB_IS_IMPLEMENTATION;
 	preparing_subr.intfsubr := intfsubr;
 	preparing_subr.type := T;
@@ -1052,6 +1082,12 @@ submodifiers ::= .
 submodifiers ::= submodifiers EXTERN OPENPAREN STRING(X) CLOSEPAREN.
 {
 	EmitterDeclareExternalSubroutine(preparing_subr.id, X.string);
+}
+
+submodifiers ::= submodifiers GOTO.
+{
+	var intfsubr := preparing_subr.intfsubr;
+	intfsubr.flags := intfsubr.flags | SUB_PARTOF_TAILCALL;
 }
 
 %type newsubid {[Symbol]}
