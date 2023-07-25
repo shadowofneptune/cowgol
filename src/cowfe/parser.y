@@ -1088,6 +1088,7 @@ submodifiers ::= submodifiers GOTO.
 {
 	var intfsubr := preparing_subr.intfsubr;
 	intfsubr.flags := intfsubr.flags | SUB_PARTOF_TAILCALL;
+	EmitterEmitSubroutineFlags(preparing_subr);
 }
 
 %type newsubid {[Symbol]}
