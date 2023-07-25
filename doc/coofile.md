@@ -69,6 +69,15 @@ string is taken from the record size.
 Indicates that subroutine `userid` calls `usedid`. Used to tell the linker
 about the call graph.
 
+### T: Tail-position marker
+
+```
+<subid:16>
+```
+
+Indicates that `subid` can make a call that is in tail-position, or may recieve
+one. Used to tell the linker about the call graph.
+
 ### W: declare workspace
 
 ```
