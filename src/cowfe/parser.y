@@ -1053,8 +1053,8 @@ implementsstart ::= SUB newsubid IMPLEMENTS typeref(T).
 		not_an_interface();
 	end if;
 
-	var istail := intfsubr.flags | SUB_PARTOF_TAILCALL;
-	current_subr.flags := current_subr.flags | istail;
+	var istail := intfsubr.flags & SUB_PARTOF_TAILCALL;
+	preparing_subr.flags := preparing_subr.flags | istail;
 
 	preparing_subr.flags := preparing_subr.flags | SUB_IS_IMPLEMENTATION;
 	preparing_subr.intfsubr := intfsubr;
