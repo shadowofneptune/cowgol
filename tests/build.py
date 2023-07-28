@@ -21,6 +21,7 @@ TESTS = [
     "fileio",
     "folding",
     "forwards",
+    "goto",
     "inputparams",
     "interfaces",
     "itoa",
