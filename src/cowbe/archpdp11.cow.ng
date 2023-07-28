@@ -1,10 +1,6 @@
 %{
 	record ArchSubroutine is
-		seen_return: uint8;
-		end_label: LabelRef;
 		rts_label: LabelRef;
-		ptr_stack: uint8;
-		var_stack: uint8;
 	end record;
 
 	record Extern is
@@ -281,6 +277,7 @@
 		E_jump("BR", label);
 	end sub;
 
+
 	sub E_call(subr: [Subroutine]) is
 		R_flushall();
 		E_tab();
@@ -297,6 +294,30 @@
 		E_reg(reg);
 		E_nl();
 	end sub;
+
+	sub E_tailcall(subr: [Subroutine]) is
+		R_flushall();
+		E("\tMOV\t");
+                E_labelref(current_subr.arch.rts_label);
+		E(", -(SP)\n");
+		E_tab();
+		E("BR\t");
+		E_subref(subr);
+		E_nl();
+	end sub;
+
+	sub E_tailcallreg(reg: RegId) is
+		R_flushall();
+		E("\tMOV\t");
+                E_labelref(current_subr.arch.rts_label);
+		E(", -(SP)\n");
+		E_tab();
+		E_insn16("BR");
+		E(" @");
+		E_reg(reg);
+		E_nl();
+	end sub;
+
 
 	sub E_ret() is
 		E("\tret\n");
@@ -1010,6 +1031,9 @@ gen JUMP():j uses all
 
 gen STARTSUB() uses all
 {
+	current_subr.arch := InternalAlloc(@bytesof ArchSubroutine)
+		as [ArchSubroutine];
+
 	RegCacheReset();
 
 	EmitterOpenStream(current_subr);
@@ -1041,6 +1065,18 @@ gen STARTSUB() uses all
 			popped := 1;
 		end if;
 	end sub;
+
+	var tailcalled := current_subr.flags & SUB_PARTOF_TAILCALL;
+
+	if tailcalled != 0 then
+		current_subr.arch.rts_label := AllocPLabel();
+		pop_return_address();
+		E_mov(REG_R5);
+		E_reg(REG_R5);
+		E(", ");
+                E_labelref(current_subr.arch.rts_label);
+		E_nl();
+	end if;
 
 	while count != 0 loop
 		count := count - 1;
@@ -1096,6 +1132,17 @@ gen ENDSUB() uses all
 		end if;
 	end sub;
 
+	var tailcalled := current_subr.flags & SUB_PARTOF_TAILCALL;
+	if tailcalled != 0 then
+		E_mov(REG_R5);
+                E_labelref(current_subr.arch.rts_label);
+		E(", ");
+		E_reg(REG_R5);
+		E_nl();
+		pushed := 1;
+	end if;
+
+
 	while count != params loop
 		var param := GetOutputParameter(current_subr, count);
 
@@ -1132,6 +1179,13 @@ gen ENDSUB() uses all
 	end if;
 	E_ret();
 
+	if tailcalled != 0 then
+		E("\tbseg\n");
+		E_label(current_subr.arch.rts_label);
+		E("\tds 2\n");
+		E("\tcseg\n");
+	end if;
+
 	EmitterCloseStream();
 }
 
@@ -1154,6 +1208,14 @@ gen RETURN() uses all
 	sub CallR2() is
 		E_callreg(REG_R2);
 	end sub;
+
+	sub Tailcall(addr: [MidcodeSubref]) is
+		E_tailcall(addr.subr);
+	end sub;
+
+	sub TailcallR2() is
+		E_tailcallreg(REG_R2);
+	end sub;
 %}
 
 gen         CALL(       param,        SUBREF():a) uses all { Call(&$a); }
@@ -1165,6 +1227,17 @@ gen         CALL(       param,        r2) uses all { CallR2(); }
 gen         CALL(  ARG1(param, r0b),  r2) uses all { CallR2(); }
 gen         CALL(  ARG2(param, r0),   r2) uses all { CallR2(); }
 gen         CALL(  ARG4(param, r0r1), r2) uses all { CallR2(); }
+
+gen     TAILCALL(       param,        SUBREF():a) uses all { Tailcall(&$a); }
+gen     TAILCALL(  ARG1(param, r0b),  SUBREF():a) uses all { Tailcall(&$a); }
+gen     TAILCALL(  ARG2(param, r0),   SUBREF():a) uses all { Tailcall(&$a); }
+gen     TAILCALL(  ARG4(param, r0r1), SUBREF():a) uses all { Tailcall(&$a); }
+
+gen     TAILCALL(       param,        r2) uses all { TailcallR2(); }
+gen     TAILCALL(  ARG1(param, r0b),  r2) uses all { TailcallR2(); }
+gen     TAILCALL(  ARG2(param, r0),   r2) uses all { TailcallR2(); }
+gen     TAILCALL(  ARG4(param, r0r1), r2) uses all { TailcallR2(); }
+
 
 gen param := END();
 
