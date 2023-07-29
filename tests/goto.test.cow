@@ -42,7 +42,7 @@ end sub;
 
 sub nested2(x: intptr): (r: intptr) goto is
 	x := x + nested1();
-	if x < 240 then
+	if x < 360 then
 		goto nested2(x);
 	else
 		r := x;
@@ -50,7 +50,7 @@ sub nested2(x: intptr): (r: intptr) goto is
 end sub;
 
 print("nested-tailrec");
-if nested2(0) == 240 then yes(); else no(); end if;
+if nested2(0) == 360 then yes(); else no(); end if;
 
 interface indirect(x: intptr, offset: intptr): (r: intptr) goto;
 var ind_ptr: [indirect];
