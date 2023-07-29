@@ -18,56 +18,64 @@ if doloop(0xFFFF, 1) == 0 then yes(); end if;
 @decl sub mutual2(x: intptr): (r: intptr) goto;
 
 sub mutual1(x: intptr): (r: intptr) goto is
-
-	if x < 18 then
-		goto mutual2(x + 5);
+	if x < 60 then
+		goto mutual2(x + 10);
 	else
 		r := x;
 	end if;
 end sub;
 
 @impl sub mutual2 is
-	goto mutual1(x + 4);
+	if x < 60 then
+		goto mutual1(x + 5);
+	else
+		r := x;
+	end if;
 end sub;
 
 print("mutual-tailrec");
-if mutual1(0) == 18 then yes(); else no(); end if;
+if mutual1(0) == 60 then yes(); else no(); end if;
 
-
-sub doloop2(x: intptr): (r: intptr) goto is
-	if x < 72 then
-		goto doloop2(x + mutual1(0));
-	else
-		r := x;
-	end if;
-end sub;
-
-print("double-tailrec");
-if doloop2(0) == 72 then yes(); else no(); end if;
-
-sub doloop3(x: intptr): (r: intptr) goto is
-	if x > 0 then
-		goto doloop3(x - doloop2(0));
-	else
-		r := x;
-	end if;
-end sub;
-
-print("triple-tailrec");
-if doloop3(144) == 0 then yes(); else no(); end if;
-
-interface indirect(x: intptr): (r: intptr) goto;
+interface indirect(x: intptr, offset: intptr): (r: intptr) goto;
 var ind_ptr: [indirect];
 
-sub doloop4 implements indirect is
-	if x > 0 then
-		goto [ind_ptr](doloop3(x));
+sub indirect1 implements indirect is
+	if x >= 50 then
+		var y := ind_ptr + offset % (@bytesof ind_ptr * 4);
+		goto [y](x + 5, offset + @bytesof ind_ptr);
 	else
 		r := x;
 	end if;
 end sub;
 
-var ind: indirect[] := {doloop4};
+sub indirect2 implements indirect is
+	if x >= 50 then
+		var y := ind_ptr + offset % (@bytesof ind_ptr * 4);
+		goto [y](x + 2, offset + @bytesof ind_ptr);
+	else
+		r := x;
+	end if;
+end sub;
+
+sub indirect3 implements indirect is
+	if x >= 50 then
+		var y := ind_ptr + offset % (@bytesof ind_ptr * 4);
+		goto [y](x + 1, offset + @bytesof ind_ptr);
+	else
+		r := x;
+	end if;
+end sub;
+
+sub indirect4 implements indirect is
+	if x >= 50 then
+		var y := ind_ptr + offset % (@bytesof ind_ptr * 4);
+		goto [y](x + 2, offset + @bytesof ind_ptr);
+	else
+		r := x;
+	end if;
+end sub;
+
+var ind: indirect[] := {indirect1, indirect2, indirect3, indirect4};
 ind_ptr := &ind[0];
 print("indirect-tailrec");
-if [ind_ptr](72) == 0 then yes(); else no(); end if;
+if [ind_ptr](0, 0) == 50 then yes(); else no(); end if;

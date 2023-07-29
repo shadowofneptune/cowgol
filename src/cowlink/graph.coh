@@ -81,7 +81,11 @@ sub PlaceSubroutines(subroutine: [Subroutine]) is
 		var watermark: Size[NUM_WORKSPACES];
 		i := 0;
 		while i != NUM_WORKSPACES loop
-			var w := subroutine.workspaceAddress[i] + subroutine.workspaceSize[i];
+			var w := subroutine.workspaceAddress[i];
+			#Tailcalls can be treated as occupying no stack space.
+			if subroutine.state & SUB_PARTOF_TAILCALL == 0 then
+				w := w + subroutine.workspaceSize[i];
+			end if;
 			watermark[i] := ArchAlignUp(w, 8);
 			if w > workspaceSize[i] then
 				workspaceSize[i] := w;
@@ -101,11 +105,6 @@ sub PlaceSubroutines(subroutine: [Subroutine]) is
 					break;
 				end if;
 				called := Deref(called);
-
-				if called.state & SUB_PARTOF_TAILCALL != 0
-				and called.state & SUB_USED != 0 then
-					continue;
-				end if;
 
 				i := 0;
 				while i != NUM_WORKSPACES loop
