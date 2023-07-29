@@ -79,14 +79,14 @@ sub PlaceSubroutines(subroutine: [Subroutine]) is
 		subroutine.state := subroutine.state | SUB_USED;
 
 		var watermark: Size[NUM_WORKSPACES];
+		var watermark_tc: Size[NUM_WORKSPACES];
 		i := 0;
 		while i != NUM_WORKSPACES loop
-			var w := subroutine.workspaceAddress[i];
-			#Tailcalls can be treated as occupying no stack space.
-			if subroutine.state & SUB_PARTOF_TAILCALL == 0 then
-				w := w + subroutine.workspaceSize[i];
-			end if;
+			var address := subroutine.workspaceAddress[i];
+			var w := address + subroutine.workspaceSize[i];
 			watermark[i] := ArchAlignUp(w, 8);
+			#Tailcalls can be treated as occupying no stack space.
+			watermark_tc[i] := address;
 			if w > workspaceSize[i] then
 				workspaceSize[i] := w;
 			end if;
@@ -109,7 +109,16 @@ sub PlaceSubroutines(subroutine: [Subroutine]) is
 				i := 0;
 				while i != NUM_WORKSPACES loop
 					var curAddr := called.workspaceAddress[i];
-					var reqAddr := watermark[i];
+					var reqAddr: Size;
+					var caller_tc := subroutine.state & SUB_PARTOF_TAILCALL;
+					var called_tc := called.state & SUB_PARTOF_TAILCALL;
+					#This logic allows for tailcalls to call normal functions,
+					#and for normal functions to call tailcalls.
+					if caller_tc != 0 and caller_tc == called_tc then
+						reqAddr := watermark_tc[i];
+					else
+						reqAddr := watermark[i];
+					end if;
 					if reqAddr > curAddr then
 						#print(subroutine.name);
 						#print(" calling ");

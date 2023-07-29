@@ -36,40 +36,56 @@ end sub;
 print("mutual-tailrec");
 if mutual1(0) == 60 then yes(); else no(); end if;
 
+sub nested1(): (r: intptr) is
+	r := mutual1(0);
+end sub;
+
+sub nested2(x: intptr): (r: intptr) goto is
+	x := x + nested1();
+	if x < 240 then
+		goto nested2(x);
+	else
+		r := x;
+	end if;
+end sub;
+
+print("nested-tailrec");
+if nested2(0) == 240 then yes(); else no(); end if;
+
 interface indirect(x: intptr, offset: intptr): (r: intptr) goto;
 var ind_ptr: [indirect];
 
 sub indirect1 implements indirect is
-	if x >= 50 then
-		var y := ind_ptr + offset % (@bytesof ind_ptr * 4);
-		goto [y](x + 5, offset + @bytesof ind_ptr);
+	if x != 50 then
+		var y := offset % (@bytesof ind_ptr * 4);
+		goto [ind_ptr + y](x + 5, offset + 1);
 	else
 		r := x;
 	end if;
 end sub;
 
 sub indirect2 implements indirect is
-	if x >= 50 then
-		var y := ind_ptr + offset % (@bytesof ind_ptr * 4);
-		goto [y](x + 2, offset + @bytesof ind_ptr);
+	if x != 50 then
+		var y := (offset % 4) * @bytesof ind_ptr;
+		goto [ind_ptr + y](x + 5, offset + 1);
 	else
 		r := x;
 	end if;
 end sub;
 
 sub indirect3 implements indirect is
-	if x >= 50 then
-		var y := ind_ptr + offset % (@bytesof ind_ptr * 4);
-		goto [y](x + 1, offset + @bytesof ind_ptr);
+	if x != 50 then
+		var y := (offset % 4) * @bytesof ind_ptr;
+		goto [ind_ptr + y](x + 5, offset + 1);
 	else
 		r := x;
 	end if;
 end sub;
 
 sub indirect4 implements indirect is
-	if x >= 50 then
-		var y := ind_ptr + offset % (@bytesof ind_ptr * 4);
-		goto [y](x + 2, offset + @bytesof ind_ptr);
+	if x != 50 then
+		var y := (offset % 4) * @bytesof ind_ptr;
+		goto [ind_ptr + y](x + 5, offset + 1);
 	else
 		r := x;
 	end if;

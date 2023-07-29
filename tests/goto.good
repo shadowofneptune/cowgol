@@ -1,4 +1,5 @@
 simple-tailrec: yes
 does-not-smash-stack: yes
 mutual-tailrec: yes
+nested-tailrec: yes
 indirect-tailrec: yes
